@@ -86,12 +86,17 @@ ENV NULLCLAW_WORKSPACE=/nullclaw-data/workspace
 ENV NULLCLAW_HOME=/nullclaw-data
 ENV HOME=/nullclaw-data
 ENV SHELL=/bin/sh
-ENV NULLCLAW_GATEWAY_PORT=3000
+# PaaS platforms like Render inject the listen port via $PORT and require an
+# all-interfaces bind; the baked-in config.json already sets allow_public_bind.
+# This env override keeps the gateway startable even if config.json is absent.
+ENV NULLCLAW_ALLOW_PUBLIC_BIND=true
 
 WORKDIR /nullclaw-data
 EXPOSE 3000
 ENTRYPOINT ["nullclaw"]
-CMD ["gateway", "--port", "3000", "--host", "::"]
+# Listen on $PORT when the platform provides one (Render), else default to 3000.
+# NULLCLAW_GATEWAY_PORT / NULLCLAW_GATEWAY_HOST win over both when set.
+CMD ["sh", "-c", "exec nullclaw gateway --port \"${NULLCLAW_GATEWAY_PORT:-${PORT:-3000}}\" --host \"${NULLCLAW_GATEWAY_HOST:-::}\""]
 
 # Optional autonomous mode (explicit opt-in):
 #   make build DOCKER_TARGET=release-root IMAGE=nullclaw:root
