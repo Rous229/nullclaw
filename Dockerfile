@@ -51,12 +51,15 @@ RUN cat > /nullclaw-data/config.json << 'EOF'
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/anthropic/claude-sonnet-4"
+        "primary": "agnes/agnes-2.5-flash"
       }
     }
   },
   "models": {
     "providers": {
+      "agnes": {
+        "base_url": "https://apihub.agnes-ai.com/v1"
+      },
       "openrouter": {}
     }
   },
