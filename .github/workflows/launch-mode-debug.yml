@@ -11,6 +11,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build thin image
         run: docker build -t nullclaw-thin .
+      - name: Test real start.sh as PID1
+        run: |
+          docker rm -f dbg2 2>/dev/null || true
+          docker run -d --name dbg2 --rm nullclaw-thin /app/start.sh || true
+          sleep 6
+          echo "--- health probe from host ---"
+          docker exec dbg2 sh -c "command -v curl" 2>/dev/null || true
+          CODE=$(docker exec dbg2 sh -c "curl -s -o /dev/null -w '%{http_code}' -m 2 http://127.0.0.1:3000/health" 2>/dev/null || echo ERR)
+          echo "health=$CODE"
+          echo "--- processes ---"
+          docker top dbg2 2>/dev/null | head -8 || true
+          echo "--- container logs ---"
+          docker logs dbg2 2>&1 | tail -25 || true
+          docker rm -f dbg2 2>/dev/null || true
+
       - name: Test launch modes
         run: |
           docker run -d --name dbg nullclaw-thin sleep infinity
