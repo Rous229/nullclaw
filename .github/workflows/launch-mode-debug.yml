@@ -1,0 +1,32 @@
+name: launch-mode-debug
+on:
+  workflow_dispatch: {}
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build thin image
+        run: docker build -t nullclaw-thin .
+      - name: Test launch modes
+        run: |
+          docker run -d --name dbg nullclaw-thin sleep infinity
+          docker exec dbg sh -c '
+            PORT=3000 NULLCLAW_API_KEY=dummy NULLCLAW_CONFIG_PATH=/tmp/c.json /app/generate-config.sh
+            echo "=== A) background setsid ==="
+            setsid nullclaw gateway --port 3001 --host 127.0.0.1 </dev/null >/tmp/a.log 2>&1 &
+            AP=$!; sleep 3
+            if kill -0 $AP 2>/dev/null; then echo "A: ALIVE"; else echo "A: DEAD"; cat /tmp/a.log; fi
+            kill $AP 2>/dev/null
+            echo "=== B) background plain ==="
+            nullclaw gateway --port 3003 --host 127.0.0.1 </dev/null >/tmp/b.log 2>&1 &
+            BP=$!; sleep 3
+            if kill -0 $BP 2>/dev/null; then echo "B: ALIVE"; else echo "B: DEAD"; cat /tmp/b.log; fi
+            kill $BP 2>/dev/null
+            echo "=== C) foreground timeout 4s ==="
+            timeout 4 nullclaw gateway --port 3005 --host :: >/tmp/c.log 2>&1
+            EC=$?
+            echo "C: exit=$EC (124=still running when killed)"
+            tail -5 /tmp/c.log
+          ' || true
+          docker logs dbg 2>&1 | tail -40 || true
