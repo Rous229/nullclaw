@@ -1,0 +1,37 @@
+name: zig-build
+
+# Compile NullClaw (with postgres engine enabled) so regressions surface
+# before the hosting platform attempts its own Docker build.
+on:
+  push:
+    branches: [deploy/render-setup]
+  pull_request:
+    branches: [deploy/render-setup]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zig 0.16.0 (project-pinned)
+        run: |
+          mkdir -p /tmp/zigpath
+          GITHUB_PATH=/tmp/zigpath/path RUNNER_TEMP=/opt bash .github/scripts/install-zig.sh 0.16.0
+          ln -sf "$(cat /tmp/zigpath/path)/zig" /usr/local/bin/zig
+          test "$(zig version)" = "0.16.0"
+
+      - name: Install libpq headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpq-dev
+
+      - name: Build (ReleaseSmall, engines=base,sqlite,postgres)
+        run: zig build -Doptimize=ReleaseSmall -Dengines=base,sqlite,postgres --search-prefix /usr
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nullclaw-linux-x86_64
+          path: zig-out/bin/nullclaw
