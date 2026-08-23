@@ -58,7 +58,9 @@ SHIM_PID=$!
 echo "nullclaw-start: health shim live on :$PORT_NUM"
 
 # ── Gateway on the internal port ──────────────────────────────
-nullclaw gateway --port "$INTERNAL_PORT" --host 127.0.0.1 > /tmp/gateway.log 2>&1 &
+# </dev/null is REQUIRED: inheriting the PID1 closed stdin makes the Zig
+# runtime fail silently at startup when backgrounded.
+nullclaw gateway --port "$INTERNAL_PORT" --host 127.0.0.1 < /dev/null > /tmp/gateway.log 2>&1 &
 GW_PID=$!
 
 # ── Wait until the gateway answers locally (bounded) ──────────
