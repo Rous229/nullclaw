@@ -58,7 +58,7 @@ SHIM_PID=$!
 echo "nullclaw-start: health shim live on :$PORT_NUM"
 
 # ── Gateway on the internal port ──────────────────────────────
-nullclaw gateway --port "$INTERNAL_PORT" --host 127.0.0.1 &
+nullclaw gateway --port "$INTERNAL_PORT" --host 127.0.0.1 > /tmp/gateway.log 2>&1 &
 GW_PID=$!
 
 # ── Wait until the gateway answers locally (bounded) ──────────
@@ -66,6 +66,9 @@ i=0
 while [ "$i" -lt 120 ]; do
   if ! kill -0 "$GW_PID" 2>/dev/null; then
     echo "nullclaw-start: gateway process exited early"
+    echo "---- gateway output ----"
+    cat /tmp/gateway.log || true
+    echo "------------------------"
     exit 1
   fi
   CODE=$(curl -s -o /dev/null -w '%{http_code}' -m 2 "http://127.0.0.1:$INTERNAL_PORT/health" || true)
