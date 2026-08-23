@@ -102,3 +102,7 @@ PROXY_PID=$!
 echo "nullclaw-start: proxying :$PORT_NUM -> :$INTERNAL_PORT"
 
 wait "$SERVER_PID" 2>/dev/null || wait "$GW_PID" 2>/dev/null || true
+EC=$?
+echo "nullclaw-start: service exited (code=$EC)"
+echo "---- last gateway output ----"
+tail -40 /tmp/gateway.log 2>/dev/null || true

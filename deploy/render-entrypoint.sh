@@ -47,7 +47,7 @@ mkdir -p "$(dirname "$CONFIG")"
 
   if [ -n "${NULLCLAW_TELEGRAM_BOT_TOKEN:-}" ]; then
     TG_TOKEN=$(printf '%s' "$NULLCLAW_TELEGRAM_BOT_TOKEN" | sed 's/\\/\\\\/g; s/"/\\"/g')
-    printf ',\n  "channels": {"cli": false, "telegram": {"accounts": {"main": {"bot_token": "%s"' "$TG_TOKEN"
+    printf ',\n  "channels": {"cli": true, "telegram": {"accounts": {"main": {"bot_token": "%s"' "$TG_TOKEN"
     if [ -n "${NULLCLAW_TELEGRAM_WEBHOOK_SECRET:-}" ]; then
       TG_SECRET=$(printf '%s' "$NULLCLAW_TELEGRAM_WEBHOOK_SECRET" | sed 's/\\/\\\\/g; s/"/\\"/g')
       printf ', "webhook_secret": "%s"' "$TG_SECRET"
