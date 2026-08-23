@@ -64,7 +64,8 @@ COPY --from=config /nullclaw-data /nullclaw-data
 # Boot-time config generator: builds config.json from env vars (secrets stay
 # out of the image and the git history). See deploy/render-entrypoint.sh.
 COPY deploy/render-entrypoint.sh /app/generate-config.sh
-RUN chmod +x /app/generate-config.sh
+COPY deploy/start.sh /app/start.sh
+RUN chmod +x /app/generate-config.sh /app/start.sh
 
 ENV NULLCLAW_WORKSPACE=/nullclaw-data/workspace
 ENV NULLCLAW_HOME=/nullclaw-data
@@ -77,10 +78,7 @@ ENV NULLCLAW_ALLOW_PUBLIC_BIND=true
 
 WORKDIR /nullclaw-data
 EXPOSE 3000
-ENTRYPOINT ["nullclaw"]
-# Listen on $PORT when the platform provides one (Render), else default to 3000.
-# NULLCLAW_GATEWAY_PORT / NULLCLAW_GATEWAY_HOST win over both when set.
-CMD ["sh", "-c", "/app/generate-config.sh && exec nullclaw gateway --port \"${NULLCLAW_GATEWAY_PORT:-${PORT:-3000}}\" --host \"${NULLCLAW_GATEWAY_HOST:-::}\""]
+ENTRYPOINT ["/app/start.sh"]
 
 # Optional autonomous mode (explicit opt-in):
 #   make build DOCKER_TARGET=release-root IMAGE=nullclaw:root
