@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/root/.cache/zig \
       *) echo "Unsupported TARGETARCH: ${arch}" >&2; exit 1 ;; \
     esac; \
     zig build -Dtarget="${zig_target}" -Doptimize=ReleaseSmall -Dversion="${VERSION}" \
-      -Dengines=base,sqlite,postgres
+      -Dengines=base,sqlite,postgres --search-prefix /usr
 
 # ── Stage 2: Config Prep ─────────────────────────────────────
 FROM busybox:1.38 AS config
