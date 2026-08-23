@@ -7,7 +7,7 @@ FROM ubuntu:24.04
 ARG BINARY_URL=https://github.com/Wing56076/nullclaw/releases/download/nullclaw-deploy/nullclaw
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates libpq5 tzdata curl sh \
+ && apt-get install -y --no-install-recommends ca-certificates libpq5 tzdata curl \
  && rm -rf /var/lib/apt/lists/*
 
 # BINARY_VERSION is bumped by every CI build; copying it into the layer
