@@ -6,6 +6,26 @@ set -eu
 
 /app/generate-config.sh
 
+# ── Boot diagnostics (never print secret values) ──────────────
+if [ -f "${NULLCLAW_CONFIG_PATH:-/nullclaw-data/config.json}" ]; then
+  BACKEND=$(sed -n 's/.*"backend": "\([^"]*\)".*/\1/p' "${NULLCLAW_CONFIG_PATH:-/nullclaw-data/config.json}" | head -1)
+  echo "nullclaw-start: memory backend = ${BACKEND:-<none>}"
+else
+  echo "nullclaw-start: WARNING no config file found"
+fi
+if [ -n "${NULLCLAW_MEMORY_POSTGRES_URL:-}" ]; then
+  HOSTPORT=$(printf '%s' "$NULLCLAW_MEMORY_POSTGRES_URL" | sed -E 's|^[a-zA-Z]+://[^@]*@||; s|/.*$||')
+  PGHOST=${HOSTPORT%%:*}
+  PGPORT=${HOSTPORT##*:}
+  [ "$PGPORT" = "$PGHOST" ] && PGPORT=5432
+  echo "nullclaw-start: PG target $PGHOST:$PGPORT"
+  curl -s --connect-timeout 6 -o /dev/null "telnet://$PGHOST:$PGPORT" \
+    && echo "nullclaw-start: PG reachable" \
+    || echo "nullclaw-start: PG UNREACHABLE"
+else
+  echo "nullclaw-start: NULLCLAW_MEMORY_POSTGRES_URL not set"
+fi
+
 PORT_NUM="${NULLCLAW_GATEWAY_PORT:-${PORT:-3000}}"
 # Accept plain numbers only; anything else falls back to 3000.
 case "$PORT_NUM" in
