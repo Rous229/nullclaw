@@ -24,15 +24,6 @@ fn fmtZ(allocator: std.mem.Allocator, comptime f: []const u8, args: anytype) ![:
     return allocator.dupeZ(u8, s);
 }
 
-/// Sentinel-terminated bounded print into a caller buffer (replaces
-/// std.fmt.bufPrintZ, removed in newer Zig std).
-fn std.fmt.bufPrintZ(buf: []u8, comptime f: []const u8, args: anytype) ![:0]u8 {
-    const s = try std.fmt.bufPrint(buf, f, args);
-    if (s.len >= buf.len) return error.NoSpaceLeft;
-    buf[s.len] = 0;
-    return s[0..s.len :0];
-}
-
 // ── SQL injection protection ──────────────────────────────────────
 
 pub const IdentifierError = error{
