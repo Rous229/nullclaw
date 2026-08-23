@@ -46,30 +46,7 @@ FROM busybox:1.38 AS config
 # Keep config.json at the volume root so existing compose volumes remain readable.
 RUN mkdir -p /nullclaw-data/workspace
 
-RUN cat > /nullclaw-data/config.json << 'EOF'
-{
-  "agents": {
-    "defaults": {
-      "model": {
-        "primary": "agnes/agnes-2.5-flash"
-      }
-    }
-  },
-  "models": {
-    "providers": {
-      "agnes": {
-        "base_url": "https://apihub.agnes-ai.com/v1"
-      },
-      "openrouter": {}
-    }
-  },
-  "gateway": {
-    "port": 3000,
-    "host": "::",
-    "allow_public_bind": true
-  }
-}
-EOF
+COPY deploy/default-config.json /nullclaw-data/config.json
 
 # Default runtime runs as non-root (uid/gid 65534).
 # Keep writable ownership for HOME/workspace in safe mode.

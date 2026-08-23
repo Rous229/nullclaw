@@ -1,0 +1,22 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "agnes/agnes-2.5-flash"
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "agnes": {
+        "base_url": "https://apihub.agnes-ai.com/v1"
+      },
+      "openrouter": {}
+    }
+  },
+  "gateway": {
+    "port": 3000,
+    "host": "::",
+    "allow_public_bind": true
+  }
+}
