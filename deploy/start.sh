@@ -27,6 +27,12 @@ if [ -n "${NULLCLAW_MEMORY_POSTGRES_URL:-}" ]; then
 else
   echo "nullclaw-start: NULLCLAW_MEMORY_POSTGRES_URL not set"
 fi
+# Telegram API reachability (polling depends on outbound HTTPS to this host).
+if timeout 6 bash -c "exec 3<>/dev/tcp/api.telegram.org/443" 2>/dev/null; then
+  echo "nullclaw-start: TELEGRAM reachable"
+else
+  echo "nullclaw-start: TELEGRAM UNREACHABLE"
+fi
 
 PORT_NUM="${NULLCLAW_GATEWAY_PORT:-${PORT:-3000}}"
 # Accept plain numbers only; anything else falls back to 3000.
