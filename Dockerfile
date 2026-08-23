@@ -6,7 +6,7 @@ FROM --platform=$BUILDPLATFORM alpine:3.23 AS builder
 
 ARG ZIG_VERSION=0.16.0
 
-RUN apk add --no-cache bash curl git musl-dev python3
+RUN apk add --no-cache bash curl git musl-dev python3 libpq-dev openssl-dev
 
 WORKDIR /app
 COPY .github/scripts/install-zig.sh .github/scripts/install-zig.sh
@@ -38,7 +38,8 @@ RUN --mount=type=cache,target=/root/.cache/zig \
       arm64) zig_target="aarch64-linux-musl" ;; \
       *) echo "Unsupported TARGETARCH: ${arch}" >&2; exit 1 ;; \
     esac; \
-    zig build -Dtarget="${zig_target}" -Doptimize=ReleaseSmall -Dversion="${VERSION}"
+    zig build -Dtarget="${zig_target}" -Doptimize=ReleaseSmall -Dversion="${VERSION}" \
+      -Dengines=base,sqlite,postgres
 
 # ── Stage 2: Config Prep ─────────────────────────────────────
 FROM busybox:1.38 AS config
@@ -57,7 +58,7 @@ FROM alpine:3.23 AS release-base
 
 LABEL org.opencontainers.image.source=https://github.com/nullclaw/nullclaw
 
-RUN apk add --no-cache ca-certificates curl git tzdata
+RUN apk add --no-cache ca-certificates curl git tzdata libpq
 
 COPY --from=builder /app/zig-out/bin/nullclaw /usr/local/bin/nullclaw
 COPY --from=config /nullclaw-data /nullclaw-data
