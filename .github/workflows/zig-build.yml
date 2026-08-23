@@ -12,6 +12,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -29,6 +31,17 @@ jobs:
 
       - name: Build (ReleaseSmall, engines=base,sqlite,postgres)
         run: zig build -Doptimize=ReleaseSmall -Dengines=base,sqlite,postgres --search-prefix /usr
+
+      - name: Publish binary to rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view nullclaw-deploy -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create nullclaw-deploy -R "$GITHUB_REPOSITORY" \
+              --title "NullClaw deploy binary (rolling)" \
+              --notes "Auto-built by CI from deploy/render-setup. Do not edit."
+          gh release upload nullclaw-deploy -R "$GITHUB_REPOSITORY" \
+            zig-out/bin/nullclaw#nullclaw --clobber
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4

@@ -1,91 +1,33 @@
 # syntax=docker/dockerfile:1
+# Thin runtime image for PaaS deploys (Back4app / Render / HF-style hosts).
+# The binary is built by GitHub Actions and published to the rolling
+# release `nullclaw-deploy`; this image just fetches and runs it.
+FROM ubuntu:24.04
 
-# ── Stage 1: Build ────────────────────────────────────────────
-# Build natively on the runner architecture and cross-compile per TARGETARCH.
-FROM --platform=$BUILDPLATFORM alpine:3.23 AS builder
+ARG BINARY_URL=https://github.com/Wing56076/nullclaw/releases/download/nullclaw-deploy/nullclaw
 
-ARG ZIG_VERSION=0.16.0
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates libpq5 tzdata curl sh \
+ && rm -rf /var/lib/apt/lists/*
 
-RUN apk add --no-cache bash curl git musl-dev python3 libpq-dev openssl-dev
+# BINARY_VERSION is bumped by every CI build; copying it into the layer
+# busts Docker cache so the fresh binary is always downloaded.
+COPY deploy/BINARY_VERSION /tmp/binary-version
+RUN curl -fsSL -o /usr/local/bin/nullclaw "${BINARY_URL}?v=$(cat /tmp/binary-version)" \
+ && chmod +x /usr/local/bin/nullclaw
 
-WORKDIR /app
-COPY .github/scripts/install-zig.sh .github/scripts/install-zig.sh
-COPY build.zig build.zig.zon ./
-COPY src/ src/
-COPY vendor/sqlite3/ vendor/sqlite3/
-
-RUN set -eu; \
-    mkdir -p /tmp/zig-path; \
-    GITHUB_PATH=/tmp/zig-path/path RUNNER_TEMP=/opt bash .github/scripts/install-zig.sh "${ZIG_VERSION}"; \
-    ln -sf "$(cat /tmp/zig-path/path)/zig" /usr/local/bin/zig; \
-    test "$(zig version)" = "0.16.0"
-
-ARG TARGETARCH
-ARG VERSION=dev
-RUN --mount=type=cache,target=/root/.cache/zig \
-    --mount=type=cache,target=/app/.zig-cache \
-    set -eu; \
-    arch="${TARGETARCH:-}"; \
-    if [ -z "${arch}" ]; then \
-      case "$(uname -m)" in \
-        x86_64) arch="amd64" ;; \
-        aarch64|arm64) arch="arm64" ;; \
-        *) echo "Unsupported host arch: $(uname -m)" >&2; exit 1 ;; \
-      esac; \
-    fi; \
-    case "${arch}" in \
-      amd64) zig_target="x86_64-linux-musl" ;; \
-      arm64) zig_target="aarch64-linux-musl" ;; \
-      *) echo "Unsupported TARGETARCH: ${arch}" >&2; exit 1 ;; \
-    esac; \
-    zig build -Dtarget="${zig_target}" -Doptimize=ReleaseSmall -Dversion="${VERSION}" \
-      -Dengines=base,sqlite,postgres --search-prefix /usr
-
-# ── Stage 2: Config Prep ─────────────────────────────────────
-FROM busybox:1.38 AS config
-
-# Keep config.json at the volume root so existing compose volumes remain readable.
-RUN mkdir -p /nullclaw-data/workspace
-
-COPY deploy/default-config.json /nullclaw-data/config.json
-
-# Default runtime runs as non-root (uid/gid 65534).
-# Keep writable ownership for HOME/workspace in safe mode.
-RUN chown -R 65534:65534 /nullclaw-data
-
-# ── Stage 3: Runtime Base (shared) ────────────────────────────
-FROM alpine:3.23 AS release-base
-
-LABEL org.opencontainers.image.source=https://github.com/nullclaw/nullclaw
-
-RUN apk add --no-cache ca-certificates curl git tzdata libpq
-
-COPY --from=builder /app/zig-out/bin/nullclaw /usr/local/bin/nullclaw
-COPY --from=config /nullclaw-data /nullclaw-data
-# Boot-time config generator: builds config.json from env vars (secrets stay
-# out of the image and the git history). See deploy/render-entrypoint.sh.
 COPY deploy/render-entrypoint.sh /app/generate-config.sh
 COPY deploy/start.sh /app/start.sh
-RUN chmod +x /app/generate-config.sh /app/start.sh
+RUN chmod +x /app/generate-config.sh /app/start.sh \
+ && mkdir -p /nullclaw-data/workspace
 
 ENV NULLCLAW_WORKSPACE=/nullclaw-data/workspace
 ENV NULLCLAW_HOME=/nullclaw-data
 ENV HOME=/nullclaw-data
 ENV SHELL=/bin/sh
-# PaaS platforms like Render inject the listen port via $PORT and require an
-# all-interfaces bind; the baked-in config.json already sets allow_public_bind.
-# This env override keeps the gateway startable even if config.json is absent.
+# PaaS platforms require an all-interfaces bind on their injected $PORT.
 ENV NULLCLAW_ALLOW_PUBLIC_BIND=true
 
 WORKDIR /nullclaw-data
 EXPOSE 3000
 ENTRYPOINT ["/app/start.sh"]
-
-# Optional autonomous mode (explicit opt-in):
-#   make build DOCKER_TARGET=release-root IMAGE=nullclaw:root
-FROM release-base AS release-root
-USER 0:0
-
-# Safe default image (used when no --target is provided)
-FROM release-base AS release
-USER 65534:65534
