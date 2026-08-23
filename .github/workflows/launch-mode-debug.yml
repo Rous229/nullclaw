@@ -1,6 +1,9 @@
 name: launch-mode-debug
 on:
   workflow_dispatch: {}
+  push:
+    branches: [deploy/render-setup]
+    paths: [.github/workflows/launch-mode-debug.yml]
 jobs:
   debug:
     runs-on: ubuntu-latest
