@@ -63,28 +63,36 @@ echo "nullclaw-start: health shim live on :$PORT_NUM"
 nullclaw gateway --port "$INTERNAL_PORT" --host 127.0.0.1 < /dev/null > /tmp/gateway.log 2>&1 &
 GW_PID=$!
 
-# ── Wait until the gateway answers locally (bounded) ──────────
+# ── Wait until SOMETHING answers on the internal port (bounded) ──
 i=0
 while [ "$i" -lt 120 ]; do
-  if ! kill -0 "$GW_PID" 2>/dev/null; then
-    wait "$GW_PID"
-    echo "nullclaw-start: gateway process exited early (code=$?, 137=kill/OOM 139=segfault)"
-    echo "---- gateway output ----"
-    cat /tmp/gateway.log || true
-    echo "------------------------"
-    exit 1
-  fi
   CODE=$(curl -s -o /dev/null -w '%{http_code}' -m 2 "http://127.0.0.1:$INTERNAL_PORT/health" || true)
   [ "$CODE" = "200" ] && break
+  # If our direct child died AND nothing else serves the port, bail out.
+  if ! kill -0 "$GW_PID" 2>/dev/null; then
+    # Zombie/detached parent? A real server may still be running.
+    SERVER_PID=$(pgrep -f "gateway --port $INTERNAL_PORT" | head -1 || true)
+    [ -n "$SERVER_PID" ] || break
+  fi
   i=$((i + 1))
   sleep 1
 done
 
 if [ "$CODE" != "200" ]; then
   echo "nullclaw-start: gateway did not become ready within 120s"
+  echo "nullclaw-start: processes:"
+  ps aux 2>/dev/null | grep -v grep | grep nullclaw || true
+  echo "---- gateway output ----"
+  cat /tmp/gateway.log || true
+  echo "------------------------"
   exit 1
 fi
-echo "nullclaw-start: gateway ready after ${i}s (internal :$INTERNAL_PORT)"
+
+# Track whichever process actually owns the service (parent may have
+# detached after forking the real server).
+SERVER_PID=$(pgrep -f "gateway --port $INTERNAL_PORT" | head -1 || true)
+[ -n "$SERVER_PID" ] || SERVER_PID=$GW_PID
+echo "nullclaw-start: gateway ready after ${i}s (internal :$INTERNAL_PORT, pid=$SERVER_PID)"
 
 # ── Phase 2: swap shim for the TCP proxy ──────────────────────
 kill "$SHIM_PID" 2>/dev/null || true
@@ -93,4 +101,4 @@ socat "TCP-LISTEN:$PORT_NUM,bind=0.0.0.0,fork,reuseaddr" "TCP4:127.0.0.1:$INTERN
 PROXY_PID=$!
 echo "nullclaw-start: proxying :$PORT_NUM -> :$INTERNAL_PORT"
 
-wait "$GW_PID"
+wait "$SERVER_PID" 2>/dev/null || wait "$GW_PID" 2>/dev/null || true
