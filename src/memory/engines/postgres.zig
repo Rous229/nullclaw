@@ -16,6 +16,23 @@ const c = if (build_options.enable_postgres) @cImport({
     @cInclude("libpq-fe.h");
 }) else struct {};
 
+/// Sentinel-terminated formatted allocation (replaces std.fmt.allocPrintZ,
+/// removed in newer Zig std). Works on any recent Zig.
+fn fmtZ(allocator: std.mem.Allocator, comptime f: []const u8, args: anytype) ![:0]u8 {
+    const s = try std.fmt.allocPrint(allocator, f, args);
+    defer allocator.free(s);
+    return allocator.dupeZ(u8, s);
+}
+
+/// Sentinel-terminated bounded print into a caller buffer (replaces
+/// std.fmt.bufPrintZ, removed in newer Zig std).
+fn std.fmt.bufPrintZ(buf: []u8, comptime f: []const u8, args: anytype) ![:0]u8 {
+    const s = try std.fmt.bufPrint(buf, f, args);
+    if (s.len >= buf.len) return error.NoSpaceLeft;
+    buf[s.len] = 0;
+    return s[0..s.len :0];
+}
+
 // ── SQL injection protection ──────────────────────────────────────
 
 pub const IdentifierError = error{
@@ -304,7 +321,7 @@ const PostgresMemoryImpl = struct {
     fn migrate(self: *Self, raw_schema: []const u8, raw_table: []const u8) !void {
         // raw_schema/raw_table are pre-validated (alphanumeric + underscore only) so safe where used below.
         // Index names must NOT use quoted identifiers, so we use raw_table directly.
-        const ddl = try std.fmt.allocPrintZ(self.allocator,
+        const ddl = try fmtZ(self.allocator,
             \\CREATE TABLE IF NOT EXISTS {s}.{s} (
             \\    id TEXT PRIMARY KEY,
             \\    key TEXT NOT NULL,
@@ -531,7 +548,7 @@ const PostgresMemoryImpl = struct {
         if (trimmed.len == 0) return allocator.alloc(MemoryEntry, 0);
 
         // Build ILIKE pattern: %query%
-        const pattern = try std.fmt.allocPrintZ(allocator, "%{s}%", .{trimmed});
+        const pattern = try fmtZ(allocator, "%{s}%", .{trimmed});
         defer allocator.free(pattern);
 
         var limit_buf: [20]u8 = undefined;
@@ -914,7 +931,7 @@ const PostgresMemoryImpl = struct {
         const iid_z = try self_.allocator.dupeZ(u8, self_.instance_id);
         defer self_.allocator.free(iid_z);
 
-        const total_z = try std.fmt.allocPrintZ(self_.allocator, "{d}", .{total_tokens});
+        const total_z = try fmtZ(self_.allocator, "{d}", .{total_tokens});
         defer self_.allocator.free(total_z);
         const params = [_]?[*:0]const u8{ sid_z, iid_z, total_z };
         const lengths = [_]c_int{ @intCast(session_id.len), @intCast(self_.instance_id.len), @intCast(total_z.len) };
