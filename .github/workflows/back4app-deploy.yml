@@ -1,0 +1,21 @@
+name: Deploy to Back4App Containers
+
+# Auto-deploys NullClaw to Back4App Containers on every push to this branch.
+# Requires repository secret BACK4APP_ACCOUNT_KEY (cloud.back4app.com -> Account -> Keys).
+on:
+  push:
+    branches: [deploy/render-setup]
+  workflow_dispatch: {}
+
+jobs:
+  deploy-to-back4app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Back4App Containers
+        uses: back4app/deploy-action@v1
+        with:
+          accountKey: ${{ secrets.BACK4APP_ACCOUNT_KEY }}
+          appName: nullclaw-bot
