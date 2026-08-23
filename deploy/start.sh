@@ -67,7 +67,8 @@ GW_PID=$!
 i=0
 while [ "$i" -lt 120 ]; do
   if ! kill -0 "$GW_PID" 2>/dev/null; then
-    echo "nullclaw-start: gateway process exited early"
+    wait "$GW_PID"
+    echo "nullclaw-start: gateway process exited early (code=$?, 137=kill/OOM 139=segfault)"
     echo "---- gateway output ----"
     cat /tmp/gateway.log || true
     echo "------------------------"
