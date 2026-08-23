@@ -19,6 +19,15 @@ if [ -n "${NULLCLAW_MEMORY_POSTGRES_URL:-}" ]; then
   PGPORT=${HOSTPORT##*:}
   [ "$PGPORT" = "$PGHOST" ] && PGPORT=5432
   echo "nullclaw-start: PG target $PGHOST:$PGPORT"
+  # Pin the resolved IP into /etc/hosts: libpq re-resolves DNS on every
+  # connection and each of the multiple memory init passes pays that cost.
+  if command -v getent >/dev/null 2>&1 && [ -n "$PGHOST" ]; then
+    PGIP=$(getent ahostsv4 "$PGHOST" 2>/dev/null | awk '{print $1; exit}')
+    if [ -n "$PGIP" ]; then
+      printf '%s %s\n' "$PGIP" "$PGHOST" >> /etc/hosts 2>/dev/null || true
+      echo "nullclaw-start: pinned $PGHOST -> $PGIP"
+    fi
+  fi
   if timeout 6 bash -c "exec 3<>/dev/tcp/$PGHOST/$PGPORT" 2>/dev/null; then
     echo "nullclaw-start: PG reachable"
   else
