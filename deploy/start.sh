@@ -19,9 +19,11 @@ if [ -n "${NULLCLAW_MEMORY_POSTGRES_URL:-}" ]; then
   PGPORT=${HOSTPORT##*:}
   [ "$PGPORT" = "$PGHOST" ] && PGPORT=5432
   echo "nullclaw-start: PG target $PGHOST:$PGPORT"
-  curl -s --connect-timeout 6 -o /dev/null "telnet://$PGHOST:$PGPORT" \
-    && echo "nullclaw-start: PG reachable" \
-    || echo "nullclaw-start: PG UNREACHABLE"
+  if timeout 6 bash -c "exec 3<>/dev/tcp/$PGHOST/$PGPORT" 2>/dev/null; then
+    echo "nullclaw-start: PG reachable"
+  else
+    echo "nullclaw-start: PG UNREACHABLE"
+  fi
 else
   echo "nullclaw-start: NULLCLAW_MEMORY_POSTGRES_URL not set"
 fi
