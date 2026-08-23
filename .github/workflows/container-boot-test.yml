@@ -1,0 +1,43 @@
+name: container-boot-test
+
+# Reproduce the exact PaaS boot: build the thin image, run it with the real
+# env vars shape, then probe /health and dump container logs. Surfaces boot
+# crashes or slowness without involving the hosting platform.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [deploy/render-setup]
+
+jobs:
+  boot-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build thin image
+        run: docker build -t nullclaw-thin .
+
+      - name: Run with deployment-shaped env vars
+        run: |
+          docker run -d --name nullclaw-test \
+            -e PORT=3000 \
+            -e NULLCLAW_API_KEY=dummy-key-for-boot-test \
+            -e NULLCLAW_TELEGRAM_BOT_TOKEN=dummy:token \
+            -p 3000:3000 \
+            nullclaw-thin
+          for i in $(seq 1 20); do
+            sleep 1
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || true)
+            echo "t=${i}s health=$CODE"
+            [ "$CODE" = "200" ] && break
+          done
+
+      - name: Probe result
+        run: |
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || true)
+          echo "FINAL health=$CODE"
+          [ "$CODE" = "200" ]
+
+      - name: Container logs (always)
+        if: always()
+        run: docker logs nullclaw-test 2>&1 | tail -60
