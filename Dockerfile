@@ -18,7 +18,8 @@ RUN curl -fsSL -o /usr/local/bin/nullclaw "${BINARY_URL}?v=$(cat /tmp/binary-ver
 
 COPY deploy/render-entrypoint.sh /app/generate-config.sh
 COPY deploy/start.sh /app/start.sh
-RUN chmod +x /app/generate-config.sh /app/start.sh \
+COPY deploy/health-shim.sh /app/health-shim.sh
+RUN chmod +x /app/generate-config.sh /app/start.sh /app/health-shim.sh \
  && mkdir -p /nullclaw-data/workspace
 
 ENV NULLCLAW_WORKSPACE=/nullclaw-data/workspace
