@@ -553,11 +553,11 @@ const PostgresMemoryImpl = struct {
             const sid_z = try allocator.dupeZ(u8, sid);
             defer allocator.free(sid_z);
             const params = [_]?[*:0]const u8{ pattern.ptr, limit_str.ptr, sid_z, iid_z };
-            const lengths = [_]c_int{ @intCast(pattern.len - 1), @intCast(std.mem.len(limit_str)), @intCast(sid.len), @intCast(self_.instance_id.len) };
+            const lengths = [_]c_int{ @intCast(pattern.len - 1), @intCast(limit_str.len), @intCast(sid.len), @intCast(self_.instance_id.len) };
             result = try self_.execParams(self_.q_recall_sid, &params, &lengths);
         } else {
             const params = [_]?[*:0]const u8{ pattern.ptr, limit_str.ptr, iid_z };
-            const lengths = [_]c_int{ @intCast(pattern.len - 1), @intCast(std.mem.len(limit_str)), @intCast(self_.instance_id.len) };
+            const lengths = [_]c_int{ @intCast(pattern.len - 1), @intCast(limit_str.len), @intCast(self_.instance_id.len) };
             result = try self_.execParams(self_.q_recall, &params, &lengths);
         }
         defer c.PQclear(result);
@@ -689,8 +689,8 @@ const PostgresMemoryImpl = struct {
                     @intCast(cat_str.len),
                     @intCast(sid.len),
                     @intCast(self_.instance_id.len),
-                    @intCast(std.mem.len(limit_str)),
-                    @intCast(std.mem.len(offset_str)),
+                    @intCast(limit_str.len),
+                    @intCast(offset_str.len),
                 };
                 result = try self_.execParams(query, &params, &lengths);
             } else {
@@ -698,8 +698,8 @@ const PostgresMemoryImpl = struct {
                 const lengths = [_]c_int{
                     @intCast(cat_str.len),
                     @intCast(self_.instance_id.len),
-                    @intCast(std.mem.len(limit_str)),
-                    @intCast(std.mem.len(offset_str)),
+                    @intCast(limit_str.len),
+                    @intCast(offset_str.len),
                 };
                 result = try self_.execParams(query, &params, &lengths);
             }
@@ -710,16 +710,16 @@ const PostgresMemoryImpl = struct {
             const lengths = [_]c_int{
                 @intCast(sid.len),
                 @intCast(self_.instance_id.len),
-                @intCast(std.mem.len(limit_str)),
-                @intCast(std.mem.len(offset_str)),
+                @intCast(limit_str.len),
+                @intCast(offset_str.len),
             };
             result = try self_.execParams(query, &params, &lengths);
         } else {
             const params = [_]?[*:0]const u8{ iid_z, limit_str.ptr, offset_str.ptr };
             const lengths = [_]c_int{
                 @intCast(self_.instance_id.len),
-                @intCast(std.mem.len(limit_str)),
-                @intCast(std.mem.len(offset_str)),
+                @intCast(limit_str.len),
+                @intCast(offset_str.len),
             };
             result = try self_.execParams(query, &params, &lengths);
         }
@@ -979,7 +979,7 @@ const PostgresMemoryImpl = struct {
         const offset_str = try std.fmt.bufPrintZ(&offset_buf, "{d}", .{offset});
 
         const params = [_]?[*:0]const u8{ iid_z, limit_str.ptr, offset_str.ptr };
-        const lengths = [_]c_int{ @intCast(self_.instance_id.len), @intCast(std.mem.len(limit_str)), @intCast(std.mem.len(offset_str)) };
+        const lengths = [_]c_int{ @intCast(self_.instance_id.len), @intCast(limit_str.len), @intCast(offset_str.len) };
 
         const result = try self_.execParams(self_.q_list_sessions, &params, &lengths);
         defer c.PQclear(result);
@@ -1050,8 +1050,8 @@ const PostgresMemoryImpl = struct {
         const lengths = [_]c_int{
             @intCast(session_id.len),
             @intCast(self_.instance_id.len),
-            @intCast(std.mem.len(limit_str)),
-            @intCast(std.mem.len(offset_str)),
+            @intCast(limit_str.len),
+            @intCast(offset_str.len),
         };
 
         const result = try self_.execParams(self_.q_load_msgs_detailed, &params, &lengths);
